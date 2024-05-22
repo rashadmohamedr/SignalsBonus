@@ -6,12 +6,6 @@ from SignalsProject import app
 from datetime import datetime
 from flask import render_template,request
 import numpy as np
-from bokeh.layouts import column
-from bokeh.plotting import figure, show, output_notebook
-from bokeh.embed import components
-import matplotlib.pyplot as plt
-import base64
-from io import BytesIO
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
