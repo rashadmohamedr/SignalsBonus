@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Distortion Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Audio Distortion Analysis</h1>
+    <p>Distortion Percentage: {{ distortion_percentage }}</p>
+
+    <canvas id="signalsChart"></canvas>
+    <canvas id="spectrumChart"></canvas>
+
+    <script>
+        // Get chart data from Flask
+        const chartData = {{ chart_data | tojson }};
+
+        // Create the signals chart
+        const signalsCtx = document.getElementById('signalsChart').getContext('2d');
+        new Chart(signalsCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.time,
+                datasets: [{
+                    label: 'Input Signal',
+                    data: chartData.input_signal,
+                    borderColor: 'blue',
+                    fill: false
+                }, {
+                    label: 'Output Signal',
+                    data: chartData.output_signal,
+                    borderColor: 'red',
+                    fill: false
+                }]
+            }
+        });
+
+        // Create the frequency spectrum chart
+        const spectrumCtx = document.getElementById('spectrumChart').getContext('2d');
+        new Chart(spectrumCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.frequencies,
+                datasets: [{
+                    label: 'Magnitude',
+                    data: chartData.magnitudes,
+                    borderColor: 'green',
+                    fill: false
+                }]
+            }
+        });
+    </script>
+    <h2>Calculate Distortion</h2>
+    <form method="POST">
+        <label for="frequency">Frequency (Hz):</label>
+        <input type="number" id="frequency" name="frequency" value="1000"><br>
+
+        <label for="samplingFrequency">Sampling Frequency (Hz):</label>
+        <input type="number" id="samplingFrequency" name="samplingFrequency" value="44000"><br>
+
+        <button type="submit">Calculate</button>
+    </form>
+
+    <script>
+        function calculateDistortion() {
+            const f0 = parseFloat(document.getElementById('frequency').value);
+            const Fs = parseFloat(document.getElementById('samplingFrequency').value);
+
+            // Simulate a simple sine wave signal (you can replace this with your actual signal data)
+            const t = Array.from({ length: 1000 }, (_, i) => i / Fs);
+            const x_t = t.map(time => Math.sin(2 * Math.PI * f0 * time));
+
+            // Apply a simple non-linear distortion (you can replace this with your actual distortion model)
+            const y_t = x_t.map(x => 20 * x + 0.02 * x * 2 + 0.01 * x * 3);
+
+            // Calculate distortion based on FFT (replace with your actual distortion calculation)
+            const fft_y = fft(y_t); // Assuming you have a function 'fft' defined
+            const fundamentalIndex = Math.round(f0 / Fs * fft_y.length);
+            const fundamentalAmplitudeSquared = Math.pow(Math.abs(fft_y[fundamentalIndex]), 2);
+
+            let sumOfSquaresHarmonics = 0;
+            for (let i = 2; i <= 10; i++) {
+                const harmonicIndex = Math.round(i * f0 / Fs * fft_y.length);
+                sumOfSquaresHarmonics += Math.pow(Math.abs(fft_y[harmonicIndex]), 2);
+            }
+
+            const distortionPercentage = 100 * (sumOfSquaresHarmonics / fundamentalAmplitudeSquared);
+            document.getElementById('calculatedDistortion').textContent = distortionPercentage.toFixed(10) + "%";
+        }
+
+        // Basic FFT implementation (replace with a more robust library if needed)
+        function fft(signal) {
+            const N = signal.length;
+            if (N === 1) {
+                return signal;
+            }
+
+            const even = fft(signal.filter((_, i) => i % 2 === 0));
+            const odd = fft(signal.filter((_, i) => i % 2 !== 0));
+
+            const result = new Array(N);
+            for (let k = 0; k < N / 2; k++) {
+                const w = Math.exp(-2j * Math.PI * k / N);
+                result[k] = even[k] + w * odd[k];
+                result[k + N / 2] = even[k] - w * odd[k];
+            }
+            return result;
+        }
+    </script>
+</body>
+</html>
+
+{% endblock %}
+
